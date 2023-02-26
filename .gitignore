@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/graph_db_test.py
+/links.json
+
+
+# IntelliJ
+.idea/
