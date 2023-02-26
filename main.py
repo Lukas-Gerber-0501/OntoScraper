@@ -14,8 +14,9 @@ WIEN = 'https://www.bhakwien22.at'  # Referenzseite
 TOBI = 'https://www.sigmaiotarhoetaalpha.org'  # kleine Seite
 CPX = 'https:://www.compax.at'
 
-MCI = 'https://www.mci.edu'  # shit seite
-MEDI = 'https://www.medicubus.at'  # shit site !!!! NoGo => für negativbeispiel verwenden in Theorietext
+# testsites that are not working because of site blocks or other reasons
+# MCI = 'https://www.mci.edu'
+# MEDI = 'https://www.medicubus.at'
 
 
 def main():
