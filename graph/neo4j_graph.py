@@ -2,10 +2,9 @@ import logging
 
 from neo4j import GraphDatabase
 
-from generics.generics import WEBPAGE, ARTICLE, MATCHING_TITLE, PARENT_OF, SIBLING_OF
-from ontology.owl_classes import Article
-
-import numpy as n
+from generics.generics import WEBPAGE, ARTICLE, MATCHING_TITLE, PARENT_OF, NO_TITLE, ARTICLE_ID, REL_ID, \
+    DATA_ID, DATA_REL_ID
+from ontology.owl_classes import Data
 
 # ToDo: Eingabemaske über GUI
 uri = "neo4j+s://fa3805f7.databases.neo4j.io:7687"  # Replace with the URI for your local Neo4j instance
@@ -28,44 +27,77 @@ def disconnect_from_neo4j(session):
     session.close()
 
 
-def insert_node(session, node):
+def insert_node_and_data(session, node):
+    # node = webpage with data, articles, subpages
+
+    # create webpage node
     query_string = create_query_string_builder(node)
+
+    if node.label == WEBPAGE:
+        # create article nodes
+        if node.articles:
+            query_string += multiquery_string_builder(node.articles, ARTICLE_ID, REL_ID)
+
+        # create data nodes
+        if node.data:
+            query_string += multiquery_string_builder(node.data, DATA_ID, DATA_REL_ID)
+
     session.run(query_string)
     print(f"Created node with name '{node.label}' and url '{node.url}'")
+
+    if node.label == WEBPAGE:
+        # match articles relationship
+        if node.articles:
+            matching_query = matching_article_builder(ARTICLE, node.url)
+            session.run(matching_query)
+            print("Created relationship between articles")
+
+
+def matching_article_builder(label, parent_url):
+    relationship_query = f"MATCH (a:{label}), (b:{label}) "
+    relationship_query += f"WHERE a.title = b.title and ID(a) <> ID(b) and a.parent_url = '{parent_url}' and a.title <> '' and a.title <> 'No title'"
+    relationship_query += "MERGE (c:information {title: a.title}) "
+    relationship_query += "WITH a,b,c "
+    relationship_query += f"MERGE (a)-[r1:{MATCHING_TITLE}]->(c) "
+    relationship_query += f"MERGE (b)-[r2:{MATCHING_TITLE}]->(c) "
+    relationship_query += "RETURN r1, r2"
+    return relationship_query
+
+
+def multiquery_string_builder(dataset, node_id, rel_id):
+    query_string = ","
+
+    for idx, node in enumerate(dataset):
+        label, ext = get_label(node)
+        query_string += f"({node_id}{idx}: {label} {{"
+        query_string += get_query_items(node)
+        query_string += "}),"
+        # create parent_of relationship
+        query_string += f"(n)-[{rel_id}{idx}:{PARENT_OF}]->({node_id}{idx}),"
+
+    return query_string[:-1]
 
 
 def create_query_string_builder(node):
     label, ext = get_label(node)
-    query_string = "CREATE (n:" + label + "{"
-    for key, value in node.__dict__.items():
-        if key == 'title':
-            title_text = "No title found" if len(node.title) == 0 else list(node.title)[0]
-            query_string += key + ": '" + str(title_text) + "',"
-            continue
-        if value and (type(value) is str or type(value) is int):
-            query_string += key + ": '" + str(value) + "',"
-
-    query_string = query_string[:-1]
+    query_string = f"CREATE (n:{label} {{"
+    query_string += get_query_items(node)
     query_string += "})"
     return query_string
 
 
-def relationship_query_string_builder(label_from, label_to, matcher_from, matcher_to):
-    relationship_query = f"MATCH (a:{label_from}), (b:{label_to}) "
-    if label_from == WEBPAGE:
-        relationship_query += f"WHERE a.url = '{matcher_from}' and b.url = '{matcher_to}' "
-        relationship_query += f"MERGE (a)-[r:{PARENT_OF}]->(b) "
-        relationship_query += f"MERGE (b)-[s:{SIBLING_OF}]->(a) "
-        relationship_query += "RETURN r, s"
-        return
-
-    if label_from == ARTICLE:
-        relationship_query += f"WHERE a.{matcher_from} = b.{matcher_to} and ID(a) <> ID(b) "
-        relationship_query += f"MERGE (a)-[r:{MATCHING_TITLE}]->(b)"
-        relationship_query += "RETURN r"
-        return
-
-    return relationship_query
+def get_query_items(node):
+    query_string = ""
+    for key, value in node.__dict__.items():
+        if key == 'title':
+            if type(node) == Data:
+                print("Stop")
+            title_text = NO_TITLE if len(node.title) == 0 else list(node.title)[0]
+            query_string += f"{key}: '{str(title_text)}',"
+            continue
+        if value and (type(value) is str or type(value) is int):
+            query_string += f"{key} : '{str(value)}',"
+    return query_string[:-1]
 
 
 def get_label(node):
@@ -95,63 +127,31 @@ def delete_all_nodes(session):
     print(f"Deleted all nodes. {result}")
 
 
-def check_for_relationship(session, page_set, current_node):
-    # generate a relationship from_node -> to_node
-    if current_node.label == WEBPAGE:
-        if len(current_node.parent_of_nodes) > 0:
-            create_parent_sibling_relationships(current_node, current_node.parent_of_nodes, session)
+def check_for_relationship(session, page_set):
+    for current_page in page_set:
+        if current_page.parent_of_webpages:
+            relationship_query = f"MATCH (a:{current_page.label} {{url: '{current_page.url}'}}), "
+            merge_query = ""
+            for idx, sibling_page in enumerate(current_page.parent_of_webpages):
+                relationship_query += f"(b{idx}:{sibling_page.label} {{url: '{sibling_page.url}'}}), "
+                merge_query += f"MERGE (a) -[r{idx}:{PARENT_OF}]->(b{idx}) "
 
-        if len(current_node.articles) > 0:
-            create_parent_sibling_relationships(current_node, current_node.articles, session)
+            relationship_query = relationship_query[:-2]
+            relationship_query += merge_query
+            session.run(relationship_query)
+            print(f"Inserted parent_of relationship for node {current_page.url}")
 
-        if len(current_node.data) > 0:
-            create_parent_sibling_relationships(current_node, current_node.data, session)
-
-    if current_node.label == ARTICLE:
-        # then we have the matching titles of the articles
-        for node in page_set:
-            if node.url in current_node.matching_title_urls and type(node) == Article:
-                # create relationship
-                if len(current_node.parent_of_nodes) > 0:
-                    print("Stop")
-                query = relationship_query_string_builder(current_node.label, node.label, "title", "title")
-
-                session.run(query)
-                print(f"Created relationship {MATCHING_TITLE} between {current_node.title} and {node.title}")
-
-
-def create_parent_sibling_relationships(node, data_set, session):
-    for data in data_set:
-        parent_query = relationship_query_string_builder(node.label, data.label, node.url, data.url)
-        session.run(parent_query)
-        print(
-            f"Created relationships {PARENT_OF} & {SIBLING_OF} between {node.title} and {data.title}")
-
-
-# MATCH (a:article), (b:article)
-# WHERE a.title = b.title and ID(a) <> ID(b)
-# CREATE (a)-[r:matching_title]->(b)
-# RETURN a,b,r
-
-
-# MATCH p=()-[:matching_title]->() RETURN p LIMIT 25;
-
-# show all nodes and relationships
-# MATCH (n)
-# OPTIONAL MATCH (n)-[r]->(m)
-# RETURN n, r, m
 
 def process_data(session, page_set):
-    # fortesting: delete all nodes before starting fresh
+    # delete all nodes
     delete_all_nodes(session)
 
     # insert nodes
     for node in page_set:
-        insert_node(session, node)
+        insert_node_and_data(session, node)
 
-    # generate relationships
-    for node in page_set:
-        check_for_relationship(session, page_set, node)
+    # generate webpage relationships
+    check_for_relationship(session, page_set)
 
 
 def generate_graph(page_set):

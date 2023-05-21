@@ -4,7 +4,7 @@ import re
 import validators
 import mimetypes
 from bs4 import BeautifulSoup
-from generics.generics import WEBPAGE, ARTICLE
+from generics.generics import WEBPAGE, ARTICLE, NO_TITLE
 
 from ontology.owl_classes import Webpage, Data
 
@@ -15,9 +15,10 @@ def get_page_type(is_webpage, url):
     else:
         mime_type, extension = get_mime_type(url)
         file_name = get_file_name(url)
-        current_node = Data(label=mime_type, url=url, title=file_name, extension=extension)
+        current_node = Data(label=mime_type, url=url, extension=extension)
+        current_node.title.add(file_name)
 
-    current_node.direct_parent = get_url_parent(url)
+    # current_node.direct_parent = get_url_parent(url)
 
     return current_node
 
@@ -98,7 +99,9 @@ def get_file_name(url):
 
 def handle_matchting_articles(data_set, article):
     for node in data_set:
-        if node.title == article.title and node.label == ARTICLE:
+        if node.title == NO_TITLE or node.label != ARTICLE:
+            continue
+        if node.title == article.title and node.parent_url == article.parent_url:
             node.matching_title_urls.add(article.url)
             article.matching_title_urls.add(node.url)
 

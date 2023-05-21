@@ -1,12 +1,9 @@
-# create a scraper with the scrapy package
-# import the scrapy package
 import logging
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
 import graph_db_test
-from generics.generics import WEBPAGE
 from graph.neo4j_graph import generate_graph
 from ontology.owl_classes import Webpage, Article, Data
 from scraper.scraper import WebsiteScraper
@@ -45,6 +42,7 @@ def main():
 
 
 def test_main():
+    # fortesting: delete after tests are finished!
     test_data_set = set()
 
     node = Webpage(url="testurl.com")
@@ -56,6 +54,10 @@ def test_main():
     video = Data(label="video", url="testvideo1.mp4")
     audio = Data(label="audio", url="testaudio1.mp3")
 
+    pdf.title.add("testdokument1")
+    video.title.add("testvideo1")
+    audio.title.add("testaudio1")
+
     node.data.add(pdf)
     node.data.add(video)
     node.data.add(audio)
@@ -64,10 +66,11 @@ def test_main():
     image.title.add("testimage")
     image.label = "image"
     image.extension = ".jpg"
+    image.url = "testimage.jpg"
     node2.data.add(image)
 
-    article = Article(url="testurl.com", content="testcontent")
-    article2 = Article(url="testurl2.com", content="testcontent2")
+    article = Article(url="testurl.com", content="testcontent", parent_url="testurl.com")
+    article2 = Article(url="testurl2.com", content="testcontent2", parent_url="testurl.com")
     article.title.add("testarticle")
     article2.title.add("testarticle")
 
@@ -77,21 +80,16 @@ def test_main():
     node.title.add("test")
     node.articles.add(article)
     node.articles.add(article2)
-    node.parent_of_nodes.add(node2)
-    node.parent_of_nodes.add(node3)
+    node.parent_of_webpages.add(node2)
+    node.parent_of_webpages.add(node3)
 
     node2.title.add("test2")
     node3.title.add("test3")
     node4.title.add("test4")
 
-    node2.parent_of_nodes.add(node4)
-    node2.parent_of_nodes.add(article)
-    node2.parent_of_nodes.add(article2)
+    node2.parent_of_webpages.add(node4)
     test_data_set.add(node)
     test_data_set.add(node2)
-    test_data_set.add(article)
-    test_data_set.add(image)
-    test_data_set.add(article2)
     test_data_set.add(node3)
     test_data_set.add(node4)
 
@@ -99,5 +97,5 @@ def test_main():
 
 
 if __name__ == "__main__":
-    # main()
-    test_main()
+    main()
+    # test_main()
