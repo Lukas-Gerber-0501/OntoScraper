@@ -1,48 +1,23 @@
 import os
+import re
 
 import validators
+import mimetypes
 from bs4 import BeautifulSoup
+from generics.generics import WEBPAGE, ARTICLE
 
-from ontology.enums import ImageTypes, AudioTypes, VideoTypes, DocumentTypes, OtherTypes
-from ontology.owl_classes import Webpage, Image, Document, Other, Video, Audio
-
-enum_dict = {
-    DocumentTypes: Document,
-    ImageTypes: Image,
-    VideoTypes: Video,
-    AudioTypes: Audio
-}
+from ontology.owl_classes import Webpage, Data
 
 
 def get_page_type(is_webpage, url):
-    print(is_webpage, url)
-
-    current_node = None
-
-    # check if url is a webpage
     if is_webpage:
-        current_node = Webpage(title=set(), url=url, link_from=set(), documents=set(), images=set(), articles=set())
+        current_node = Webpage(url=url)
     else:
+        mime_type, extension = get_mime_type(url)
+        file_name = get_file_name(url)
+        current_node = Data(label=mime_type, url=url, title=file_name, extension=extension)
 
-        extension = url.split('.')[-1]
-        file_name = os.path.basename(url)
-        file_name = file_name.split('.')
-        file_name = file_name[-2]
-
-        for enum_class, obj_class in enum_dict.items():
-            if any(url.endswith(ext) for ext in [m.value for m in enum_class]):
-                current_node = obj_class(url=url, **{obj_class.__name__.lower() + '_extension': extension},
-                                         link_from=set(), title=set())
-                break
-            else:
-                current_node = Other(url=url, link_from=set())
-
-        # add title if not webpage
-        current_node.title.add(file_name)
-
-    parent = get_parent(url)
-    if validators.url(parent):
-        current_node.direct_parent = parent
+    current_node.direct_parent = get_url_parent(url)
 
     return current_node
 
@@ -66,11 +41,14 @@ def trim_urls(urls):
     return trimmed_urls
 
 
-def get_parent(url):
+def get_url_parent(url):
     if url[-1] == '/':
         url = url[:-1]
     url_parts = url.split('/')
-    return '/'.join(url_parts[:-1])
+    result = '/'.join(url_parts[:-1])
+    if validators.url(result):
+        return result
+    return None
 
 
 def is_text(content_type):
@@ -86,7 +64,7 @@ def get_node(data_set, url):
 
 def get_parent_node(data_set, url):
     for node in data_set:
-        if node.url == url and node.label == "Webpage":
+        if node.url == url and node.label == WEBPAGE:
             return node
     return None
 
@@ -101,3 +79,29 @@ def url_builder(sub_url, url, parent_url):
     if sub_url and sub_url.startswith("/") and len(sub_url) > 1 and not url.startswith(parent_url):
         return url + sub_url
     return sub_url
+
+
+def get_mime_type(filename):
+    mime_type, encoding = mimetypes.guess_type(filename)
+    if mime_type is not None:
+        extension = mimetypes.guess_extension(mime_type)
+        return mime_type.split("/")[0], extension
+    return None, None
+
+
+def get_file_name(url):
+    file_name = os.path.basename(url)
+    file_name = file_name.split('.')
+    file_name = file_name[-2]
+    return file_name
+
+
+def handle_matchting_articles(data_set, article):
+    for node in data_set:
+        if node.title == article.title and node.label == ARTICLE:
+            node.matching_title_urls.add(article.url)
+            article.matching_title_urls.add(node.url)
+
+
+def clean_text(text):
+    return text.replace("'", "")

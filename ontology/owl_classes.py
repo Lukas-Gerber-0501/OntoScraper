@@ -1,149 +1,55 @@
-# class Data:
-#     def __init__(self,
-#                  link_from=None,
-#                  direct_parent=None,
-#                  url=None,
-#                  title=None,
-#                  h2_tags=None,
-#                  h3_tags=None,
-#                  paragraphs=None,
-#                  documents=None
-#                  ):
-#         self.link_from = link_from
-#         self.direct_parent = direct_parent
-#         self.url = url
-#         self.title = title
-#         self.h2_tags = h2_tags
-#         self.h3_tags = h3_tags
-#         self.paragraphs = paragraphs
-#         self.documents = documents
+from dataclasses import dataclass, field
+from typing import Optional
+from generics.generics import WEBPAGE, ARTICLE
 
 
 # parent class for all pages
-class Page:
-    def __init__(self,
-                 title=None,
-                 url=None,
-                 direct_parent=None,
-                 link_from=None,
-                 link_parent=None
-                 ):
-        self.title = title
-        self.url = url
-        self.direct_parent = direct_parent
-        self.link_from = link_from
-        self.link_parent = link_parent
+@dataclass(kw_only=True)
+class Information:
+    title: set = field(default_factory=set)
+    url: Optional[str] = None
+    sibling_of_urls: set = field(default_factory=set)
+    parent_of_nodes: set = field(default_factory=set)
+
+    def __hash__(self):
+        return hash(self.url)
+
+
+# generic class for data on webpage
+@dataclass(kw_only=True)
+class Data(Information):
+    label: Optional[str] = None
+    extension: Optional[str] = None
+    content: Optional[str] = None
+    author: Optional[str] = None
+    date: Optional[str] = None
+    file_size: Optional[str] = None
+    other_information: Optional[str] = None
+
+    def __hash__(self):
+        return super().__hash__()
+
+
+#
+# class for articles on webpage
+@dataclass(kw_only=True)
+class Article(Information):
+    mimetype: str = "text"
+    label: str = ARTICLE
+    content: Optional[str] = None
+    matching_title_urls: set[str] = field(default_factory=set)
+
+    def __hash__(self):
+        return super().__hash__()
 
 
 # class for webpage
-class Webpage(Page):
-    label = "Webpage"
+@dataclass(kw_only=True)
+class Webpage(Information):
+    label: str = WEBPAGE
+    articles: set[Article] = field(default_factory=set)
+    data: set[Data] = field(default_factory=set)
+    #documents: set[Data] = field(default_factory=set)
 
-    def __init__(self,
-                 title=None,
-                 url=None,
-                 direct_parent=None,
-                 articles=None,
-                 images=None,
-                 documents=None,
-                 link_from=None,
-                 link_parent=None
-                 ):
-        super().__init__(title, url, direct_parent, link_from, link_parent)
-        self.articles = articles
-        self.images = images
-        self.documents = documents
-
-
-# class for images on webpage
-class Image(Page):
-    label = "Image"
-
-    def __init__(self,
-                 title=None,
-                 url=None,
-                 direct_parent=None,
-                 image_extension=None,
-                 link_from=None,
-                 link_parent=None
-                 ):
-        super().__init__(title, url, direct_parent, link_from, link_parent)
-        self.image_extension = image_extension
-
-
-# class for documents on webpage
-class Document(Page):
-    label = "Document"
-
-    def __init__(self,
-                 title=None,
-                 url=None,
-                 direct_parent=None,
-                 document_extension=None,
-                 link_from=None,
-                 link_parent=None
-                 ):
-        super().__init__(title, url, direct_parent, link_from, link_parent)
-        self.document_extension = document_extension
-
-
-# class for articles on webpage
-class Article(Page):
-    label = "Article"
-
-    def __init__(self,
-                 title=None,
-                 url=None,
-                 direct_parent=None,
-                 content=None,
-                 link_from=None,
-                 link_parent=None
-                 ):
-        super().__init__(title, url, direct_parent, link_from, link_parent)
-        self.content = content
-
-
-# class for videos on webpage
-class Video(Page):
-    label = "Video"
-
-    def __init__(self,
-                 title=None,
-                 url=None,
-                 direct_parent=None,
-                 video_extension=None,
-                 link_from=None,
-                 link_parent=None
-                 ):
-        super().__init__(title, url, direct_parent, link_from, link_parent)
-        self.video_extension = video_extension
-
-
-# class for audio on webpage
-class Audio(Page):
-    label = "Audio"
-
-    def __init__(self,
-                 title=None,
-                 url=None,
-                 direct_parent=None,
-                 audio_extension=None,
-                 link_from=None,
-                 link_parent=None
-                 ):
-        super().__init__(title, url, direct_parent, link_from, link_parent)
-        self.audio_extension = audio_extension
-
-
-# class for everything else on webpage
-class Other(Page):
-    label = "Other"
-
-    def __init__(self,
-                 title=None,
-                 url=None,
-                 direct_parent=None,
-                 link_from=None,
-                 link_parent=None
-                 ):
-        super().__init__(title, url, direct_parent, link_from, link_parent)
+    def __hash__(self):
+        return super().__hash__()
