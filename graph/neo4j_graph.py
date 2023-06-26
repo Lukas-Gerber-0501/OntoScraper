@@ -1,15 +1,17 @@
 import logging
-
+import spacy
 from neo4j import GraphDatabase
 
 from generics.generics import WEBPAGE, ARTICLE, MATCHING_TITLE, PARENT_OF, NO_TITLE, ARTICLE_ID, REL_ID, \
-    DATA_ID, DATA_REL_ID
+    DATA_ID, DATA_REL_ID, MENTIONED_IN, PDF
 from ontology.owl_classes import Data
 
 # ToDo: Eingabemaske über GUI
-uri = "neo4j+s://fa3805f7.databases.neo4j.io:7687"  # Replace with the URI for your local Neo4j instance
+uri = "neo4j+s://65f99491.databases.neo4j.io:7687"  # Replace with the URI for your local Neo4j instance
 u = "neo4j"  # Replace with your Neo4j username
-p = "7fGG9vComLeggEYMBSqvqvwWWmPwuyxuDV1e2ec-2rc"  # Replace with your Neo4j password
+p = "9aiKUTWKd7kyfn3lPuJBRAMzddJ_Koe5qfkFu4UsnV8"  # Replace with your Neo4j password
+
+global_counter = 0
 
 
 def connect_to_neo4j(username, password):
@@ -32,15 +34,18 @@ def insert_node_and_data(session, node):
 
     # create webpage node
     query_string = create_query_string_builder(node)
+    print("First Create: ", query_string)
 
     if node.label == WEBPAGE:
         # create article nodes
         if node.articles:
             query_string += multiquery_string_builder(node.articles, ARTICLE_ID, REL_ID)
+            print("Article query: ", query_string)
 
         # create data nodes
         if node.data:
             query_string += multiquery_string_builder(node.data, DATA_ID, DATA_REL_ID)
+            print("Data query: ", query_string)
 
     session.run(query_string)
     print(f"Created node with name '{node.label}' and url '{node.url}'")
@@ -51,6 +56,7 @@ def insert_node_and_data(session, node):
             matching_query = matching_article_builder(ARTICLE, node.url)
             session.run(matching_query)
             print("Created relationship between articles")
+            print(matching_query)
 
 
 def matching_article_builder(label, parent_url):
@@ -75,7 +81,53 @@ def multiquery_string_builder(dataset, node_id, rel_id):
         # create parent_of relationship
         query_string += f"(n)-[{rel_id}{idx}:{PARENT_OF}]->({node_id}{idx}),"
 
+        if node_id == ARTICLE_ID or (node_id == DATA_ID and node.extension == PDF):
+            entities = run_named_entity_recognition(node.content)
+            query_string += create_ner_cypher_query(node_id, idx, entities)
+
     return query_string[:-1]
+
+
+def create_ner_cypher_query(parent_id, parent_idx, entities):
+    global global_counter
+    temp = list()
+    query_string = ""
+    for idx, ent in enumerate(entities):
+        if ent.text not in temp:
+            temp.append(ent.text)
+            label = get_ner_label(ent.label_)
+            query_string += f"(e{global_counter}{parent_idx}{idx}:{label} {{title: '{ent.text}'}}),"
+            query_string += f"(e{global_counter}{parent_idx}{idx})-[er{global_counter}{parent_idx}{idx}:{MENTIONED_IN}]->({parent_id}{parent_idx}),"
+            global_counter += 1
+
+    return query_string
+
+
+def run_named_entity_recognition(text):
+    # load pretrained language model
+    nlp = spacy.load("de_core_news_sm")
+
+    # use named entity recognition on text
+    doc = nlp(text)
+
+    # filter for the main entities
+    filtered_entities = [ent for ent in doc.ents if ent.label_ in ['LOC', 'ORG', 'PER', 'MISC']]
+
+    # return filteres entities
+    return filtered_entities
+
+
+def get_ner_label(label):
+    if label == 'PER':
+        return 'person'
+    if label == 'MISC':
+        return 'miscellaneous'
+    if label == 'LOC':
+        return 'location'
+    if label == 'ORG':
+        return 'organization'
+    else:
+        return 'miscellaneous'
 
 
 def create_query_string_builder(node):
@@ -106,7 +158,7 @@ def get_label(node):
     return node.mimetype, node.extension
 
 
-def delete_node(session, node):
+def delete_node(conn_session, node):
     try:
         driver = GraphDatabase.driver(uri, auth=(u, p))
         with driver.session() as session:
@@ -122,7 +174,7 @@ def delete_node(session, node):
         driver.close()
 
 
-def delete_all_nodes(session):
+def delete_all_nodes_and_relationships(session):
     result = session.run("MATCH (n) DETACH DELETE n")
     print(f"Deleted all nodes. {result}")
 
@@ -139,12 +191,13 @@ def check_for_relationship(session, page_set):
             relationship_query = relationship_query[:-2]
             relationship_query += merge_query
             session.run(relationship_query)
-            print(f"Inserted parent_of relationship for node {current_page.url}")
+            print(f"Inserted parent_of relationship for node {current_page.url} \n with query: {relationship_query}")
 
 
 def process_data(session, page_set):
+
     # delete all nodes
-    delete_all_nodes(session)
+    delete_all_nodes_and_relationships(session)
 
     # insert nodes
     for node in page_set:
@@ -163,11 +216,3 @@ def generate_graph(page_set):
     process_data(session, page_set)
 
     disconnect_from_neo4j(session)
-
-    # ToDo: connection to graph goes here and data is written to the database
-
-    # ToDo: interpret paragraphs with nlp library to get meaning of the text, maybe set text title in class data?
-
-# if __name__ == "__main__":
-#     insert_node()
-#     delete_node()
