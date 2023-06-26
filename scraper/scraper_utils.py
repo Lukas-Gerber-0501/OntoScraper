@@ -1,10 +1,11 @@
 import os
-import re
+import requests
+import pdfplumber
 
 import validators
 import mimetypes
 from bs4 import BeautifulSoup
-from generics.generics import WEBPAGE, ARTICLE, NO_TITLE
+from generics.generics import WEBPAGE, ARTICLE, NO_TITLE, PDF
 
 from ontology.owl_classes import Webpage, Data
 
@@ -18,9 +19,29 @@ def get_page_type(is_webpage, url):
         current_node = Data(label=mime_type, url=url, extension=extension)
         current_node.title.add(file_name)
 
-    # current_node.direct_parent = get_url_parent(url)
+        if extension == PDF and mime_type == "application":
+            current_node.content = fetch_pdf_content(url)
 
     return current_node
+
+
+def fetch_pdf_content(url):
+    # fetch pdf and open
+    response = requests.get(url, stream=True)
+    with open('temp.pdf', 'wb') as f:
+        f.write(response.content)
+
+    # read pdf text content
+    content = ""
+    with pdfplumber.open('temp.pdf') as pdf:
+        for page in pdf.pages:
+            page_content = page.extract_text()
+            content += page_content + "\n"
+
+    # remove empty lines
+    content = '\n'.join(line for line in content.splitlines() if line)
+
+    return content
 
 
 def extract_tag_text(html_array, tag_type):
