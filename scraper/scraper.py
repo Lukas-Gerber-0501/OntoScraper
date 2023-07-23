@@ -1,5 +1,6 @@
 # create a class that inherits from the scrapy.Spider class
 import logging
+import uuid
 
 import scrapy
 import validators
@@ -7,8 +8,8 @@ from scrapy import signals
 
 from generics.generics import NO_TITLE
 from ontology.owl_classes import Article, Webpage
-from scraper.scraper_utils import is_text, extract_tag_text, get_page_type, url_cleanup, get_parent_node, \
-    handle_matchting_articles, clean_text
+from scraper.scraper_utils import is_text, extract_tag_text, create_node, url_cleanup, get_parent_node, \
+    clean_text, check_content_on_matching_title
 
 current_node = None
 
@@ -40,7 +41,7 @@ class WebsiteScraper(scrapy.Spider):
 
         # create current node
         is_webpage = is_text(response.headers.get('Content-Type', '').decode('utf-8').lower())
-        current_node = get_page_type(is_webpage, response.url)
+        current_node = create_node(is_webpage, response.url)
 
         self.visited_links.add(response.url)
 
@@ -73,7 +74,6 @@ class WebsiteScraper(scrapy.Spider):
                 else:
                     title_set.add("No title found")
                     current_node.title = title_set
-                yield {"title": title_set}
             else:
                 # fallback title from url if no h1 tag is present
                 current_node.title.add(url_cleanup(response.url).split('/')[-1])
@@ -83,31 +83,41 @@ class WebsiteScraper(scrapy.Spider):
             if len(paragraphs) != 0 and paragraphs:
                 # search for paragraph & title
                 for p in paragraphs:
-                    # convert p tag to string
+
+                    # buffer to write to article after iteration
+                    temp_title = set()
+                    temp_content = ""
+
+                    # convert paragraph to string
                     p_text = ''.join(p.xpath('.//text()').getall()).strip()
-                    p_text = clean_text(p_text)
-                    # Article class for every paragraph on page
-                    article = Article(url=response.url, content=p_text, title=set(), parent_url=current_node.url)
-                    # Find title of paragraph
-                    # Get the parent div of the paragraph
+                    # replace special chars
+                    temp_content = clean_text(p_text)
+
+                    # Find title of paragraph in parent div
                     parent_div = p.xpath('ancestor::div[1]')
-                    # Keep searching for parent div until any 'h' tag is found
+                    # Keep searching for parent div until a 'h' tag is found
                     while parent_div:
                         h_tag = parent_div.xpath('.//h1|.//h2|.//h3').get()
                         if h_tag:
                             h_text = scrapy.Selector(text=h_tag).xpath('string()').get().strip()
                             h_text = clean_text(h_text)
                             if h_text:
-                                article.title.add(h_text)
-                                handle_matchting_articles(current_node.articles, article)
-                            else:
-                                article.title.add(NO_TITLE)
+                                temp_title.add(h_text)
                             break
                         parent_div = parent_div.xpath('ancestor::div[1]')
-                    if not article.title or len(article.title) == 0:
-                        article.title.add(NO_TITLE)
-                    # Add article to article_set of current_node
-                    current_node.articles.add(article)
+
+                    # if there is no title found, set no title
+                    if len(temp_title) == 0:
+                        temp_title.add(NO_TITLE)
+
+                    # check if article with same title exists
+                    is_matching = check_content_on_matching_title(current_node.articles, temp_title, temp_content)
+
+                    if not is_matching:
+                        # if there is no matching title/article create new one
+                        article = Article(url=response.url, content=temp_content, title=temp_title,
+                                          parent_url=current_node.url, uuid=str(uuid.uuid4()))
+                        current_node.articles.add(article)
 
             links = response.css('a::attr(href)').getall()
 
@@ -116,7 +126,6 @@ class WebsiteScraper(scrapy.Spider):
                 if validators.url(link) and self.allowed_domains[0] in link and not \
                         any(banned_word in link for banned_word in self.banned_words):
                     if link not in self.visited_links:
-                        # yield {"link": link}
                         yield response.follow(link, callback=self.parse, meta={'parent': response.url})
                     # else:
                     #     if parent_node:

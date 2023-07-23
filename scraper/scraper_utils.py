@@ -1,22 +1,23 @@
-import os
-import requests
-import pdfplumber
-
-import validators
 import mimetypes
-from bs4 import BeautifulSoup
-from generics.generics import WEBPAGE, ARTICLE, NO_TITLE, PDF
+import os
+import uuid
 
+import pdfplumber
+import requests
+import validators
+from bs4 import BeautifulSoup
+
+from generics.generics import WEBPAGE, ARTICLE, NO_TITLE, PDF
 from ontology.owl_classes import Webpage, Data
 
 
-def get_page_type(is_webpage, url):
+def create_node(is_webpage, url):
     if is_webpage:
-        current_node = Webpage(url=url)
+        current_node = Webpage(url=url, uuid=str(uuid.uuid4()))
     else:
         mime_type, extension = get_mime_type(url)
         file_name = get_file_name(url)
-        current_node = Data(label=mime_type, url=url, extension=extension)
+        current_node = Data(label=mime_type, url=url, extension=extension, uuid=str(uuid.uuid4()))
         current_node.title.add(file_name)
 
         if extension == PDF and mime_type == "application":
@@ -127,5 +128,20 @@ def handle_matchting_articles(data_set, article):
             article.matching_title_urls.add(node.url)
 
 
+def check_content_on_matching_title(data_set, title, content):
+    if not title or NO_TITLE in title:
+        return False
+
+    # iterate over all articles already in set and check for same title
+    for node in data_set:
+        if node.title == title:
+            if len(content) > 0:
+                node.content = " ".join([node.content, content])
+            return True
+    return False
+
+
 def clean_text(text):
-    return text.replace("'", "")
+    res = text.replace("'", "")
+    res = res.replace('"', '')
+    return res

@@ -1,6 +1,7 @@
 import logging
 import spacy
 from neo4j import GraphDatabase
+import uuid
 
 from generics.generics import WEBPAGE, ARTICLE, MATCHING_TITLE, PARENT_OF, NO_TITLE, ARTICLE_ID, REL_ID, \
     DATA_ID, DATA_REL_ID, MENTIONED_IN, PDF
@@ -8,20 +9,18 @@ from ontology.owl_classes import Data
 
 # ToDo: Eingabemaske über GUI
 uri = "neo4j+s://65f99491.databases.neo4j.io:7687"  # Replace with the URI for your local Neo4j instance
-u = "neo4j"  # Replace with your Neo4j username
-p = "9aiKUTWKd7kyfn3lPuJBRAMzddJ_Koe5qfkFu4UsnV8"  # Replace with your Neo4j password
+user = "neo4j"  # Replace with your Neo4j username
+password = "9aiKUTWKd7kyfn3lPuJBRAMzddJ_Koe5qfkFu4UsnV8"  # Replace with your Neo4j password
 
 global_counter = 0
 
 
-def connect_to_neo4j(username, password):
+def connect_to_neo4j(username, pw):
     try:
-        driver = GraphDatabase.driver(uri, auth=(username, password))
+        driver = GraphDatabase.driver(uri, auth=(username, pw))
         current_session = driver.session()
-        print("Connected to Neo4j")
         return current_session
     except Exception as e:
-        # Handle the exception here
         print(f"Failed to connect to Neo4j: {e}")
 
 
@@ -34,7 +33,7 @@ def insert_node_and_data(session, node):
 
     # create webpage node
     query_string = create_query_string_builder(node)
-    print("First Create: ", query_string)
+    print("Create: ", query_string)
 
     if node.label == WEBPAGE:
         # create article nodes
@@ -50,13 +49,13 @@ def insert_node_and_data(session, node):
     session.run(query_string)
     print(f"Created node with name '{node.label}' and url '{node.url}'")
 
-    if node.label == WEBPAGE:
-        # match articles relationship
-        if node.articles:
-            matching_query = matching_article_builder(ARTICLE, node.url)
-            session.run(matching_query)
-            print("Created relationship between articles")
-            print(matching_query)
+    # if node.label == WEBPAGE:
+    #     # match articles relationship
+    #     if node.articles:
+    #         matching_query = matching_article_builder(ARTICLE, node.url)
+    #         session.run(matching_query)
+    #         print("Created relationship between articles")
+    #         print(matching_query)
 
 
 def matching_article_builder(label, parent_url):
@@ -88,21 +87,6 @@ def multiquery_string_builder(dataset, node_id, rel_id):
     return query_string[:-1]
 
 
-def create_ner_cypher_query(parent_id, parent_idx, entities):
-    global global_counter
-    temp = list()
-    query_string = ""
-    for idx, ent in enumerate(entities):
-        if ent.text not in temp:
-            temp.append(ent.text)
-            label = get_ner_label(ent.label_)
-            query_string += f"(e{global_counter}{parent_idx}{idx}:{label} {{title: '{ent.text}'}}),"
-            query_string += f"(e{global_counter}{parent_idx}{idx})-[er{global_counter}{parent_idx}{idx}:{MENTIONED_IN}]->({parent_id}{parent_idx}),"
-            global_counter += 1
-
-    return query_string
-
-
 def run_named_entity_recognition(text):
     # load pretrained language model
     nlp = spacy.load("de_core_news_sm")
@@ -113,8 +97,23 @@ def run_named_entity_recognition(text):
     # filter for the main entities
     filtered_entities = [ent for ent in doc.ents if ent.label_ in ['LOC', 'ORG', 'PER', 'MISC']]
 
-    # return filteres entities
+    # return filtered entities
     return filtered_entities
+
+
+def create_ner_cypher_query(parent_id, parent_idx, entities):
+    global global_counter
+    temp = list()
+    query_string = ""
+    for idx, ent in enumerate(entities):
+        if ent.text not in temp:
+            temp.append(ent.text)
+            label = get_ner_label(ent.label_)
+            query_string += f"(e{global_counter}{parent_idx}{idx}:{label} {{uuid: '{str(uuid.uuid4())}', title: '{ent.text}'}}),"
+            query_string += f"(e{global_counter}{parent_idx}{idx})-[er{global_counter}{parent_idx}{idx}:{MENTIONED_IN}]->({parent_id}{parent_idx}),"
+            global_counter += 1
+
+    return query_string
 
 
 def get_ner_label(label):
@@ -160,14 +159,13 @@ def get_label(node):
 
 def delete_node(conn_session, node):
     try:
-        driver = GraphDatabase.driver(uri, auth=(u, p))
+        driver = GraphDatabase.driver(uri, auth=(user, password))
         with driver.session() as session:
             result = session.run("MATCH (n:Greeting {name: $name}) DELETE n",
                                  name='test')
             greeting_node = result.single()[0]
             print(f"Deleted node with name '{greeting_node['name']}'")
     except Exception as e:
-        # Handle the exception here
         print(f"Failed to connect to Neo4j: {e}")
     finally:
         # Close the driver when done
@@ -195,7 +193,6 @@ def check_for_relationship(session, page_set):
 
 
 def process_data(session, page_set):
-
     # delete all nodes
     delete_all_nodes_and_relationships(session)
 
@@ -207,12 +204,7 @@ def process_data(session, page_set):
     check_for_relationship(session, page_set)
 
 
-def generate_graph(page_set):
-    logging.basicConfig(filename='neo4j_logger.log', level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(message)s')
-
-    session = connect_to_neo4j(u, p)
-
+def generate_graph(session, page_set):
+    print("Starting data processing....")
     process_data(session, page_set)
-
-    disconnect_from_neo4j(session)
+    print("Finished data processing!")

@@ -1,11 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Optional
 from generics.generics import WEBPAGE, ARTICLE
+import uuid
 
 
 # parent class for all pages
 @dataclass(kw_only=True)
 class Information:
+    uuid: str = None
     title: set = field(default_factory=set)
     url: Optional[str] = None
     sibling_of_urls: set = field(default_factory=set)
