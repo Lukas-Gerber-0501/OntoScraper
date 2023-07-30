@@ -7,15 +7,10 @@ from generics.constants import WEBPAGE, PARENT_OF, NO_TITLE, ARTICLE_ID, REL_ID,
     DATA_ID, DATA_REL_ID, MENTIONED_IN, PDF
 from scraper.scraper_utils import clean_text
 
-# ToDo: Eingabemaske über GUI
-uri = "neo4j+s://65f99491.databases.neo4j.io:7687"  # Replace with the URI for your local Neo4j instance
-user = "neo4j"  # Replace with your Neo4j username
-password = "9aiKUTWKd7kyfn3lPuJBRAMzddJ_Koe5qfkFu4UsnV8"  # Replace with your Neo4j password
-
 global_counter = 0
 
 
-def connect_to_neo4j(username, pw):
+def connect_to_neo4j(username, pw, uri):
     try:
         driver = GraphDatabase.driver(uri, auth=(username, pw))
         current_session = driver.session()

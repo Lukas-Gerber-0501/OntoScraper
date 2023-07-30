@@ -9,21 +9,6 @@ from graph.neo4j_graph import generate_graph, connect_to_neo4j, disconnect_from_
 from scraper.scraper import WebsiteScraper
 from scraper.scraper_utils import trim_urls
 
-uri = "neo4j+s://65f99491.databases.neo4j.io:7687"  # Replace with the URI for your local Neo4j instance
-user = "neo4j"  # Replace with your Neo4j username
-password = "9aiKUTWKd7kyfn3lPuJBRAMzddJ_Koe5qfkFu4UsnV8"  # Replace with your Neo4j password
-
-# testsites
-WIEN = 'https://www.bhakwien22.at'  # reference site with deep structure and multiple nodes
-SIA = 'https://www.sigmaiotarhoetaalpha.org'  # small website with deep structure
-CPX = 'https://www.compaxdigital.com'  # big website with flat structure
-OEH = 'https://www.oeh-mci.at'  #
-
-
-# testsites that are not working because of site blocks or other reasons
-# MCI = 'https://www.mci.edu' (Website split into multiple urls like edu, de, at, ...)
-# MEDI = 'https://www.medicubus.at' (Scraper blocking)
-
 
 def main():
     # create a new tkinter window
@@ -40,7 +25,7 @@ def main():
     url_var = tk.StringVar()
     username_var = tk.StringVar()
     password_var = tk.StringVar()
-    banned_words_var = tk.StringVar()
+    neo4j_uri_var = tk.StringVar()
 
     # create form fields with padding and left alignment
     ttk.Label(window, text='Website-URL', anchor='w').grid(row=0, column=0, sticky='ew', padx=10, pady=10)
@@ -52,25 +37,29 @@ def main():
     ttk.Label(window, text='Neo4j-Password', anchor='w').grid(row=2, column=0, sticky='ew', padx=10, pady=10)
     ttk.Entry(window, textvariable=password_var, show='*').grid(row=2, column=1, sticky='ew', padx=10, pady=10)
 
+    ttk.Label(window, text='Neo4j-Uri', anchor='w').grid(row=3, column=0, sticky='ew', padx=10, pady=10)
+    ttk.Entry(window, textvariable=neo4j_uri_var).grid(row=3, column=1, sticky='ew', padx=10, pady=10)
+
     def submit():
         # get form values
         url = url_var.get()
         username = username_var.get()
         password = password_var.get()
-        banned_words = banned_words_var.get().split(',')  # assuming banned words are comma-separated
+        neo4j_uri = neo4j_uri_var.get()
 
         # validate form values
-        if not url or not username or not password or not banned_words:
+        if not url or not username or not password or not neo4j_uri:
             messagebox.showerror("Error", "All fields are required")
             return
 
         # validate URL
         if not re.match(r'^https?://www\.[^/]+$', url):
-            messagebox.showerror("Error", "Invalid URL, has to start with http://www or https://www, no trailing / allowed")
+            messagebox.showerror("Error",
+                                 "Invalid URL, has to start with http://www or https://www, no trailing / allowed")
             return
 
         # run your main logic here
-        run_scraper(url, username, password, banned_words)
+        run_scraper(url, username, password, neo4j_uri)
 
     # create submit button
     ttk.Button(window, text='Submit', command=submit).grid(row=4, column=1)
@@ -79,13 +68,13 @@ def main():
     window.mainloop()
 
 
-def run_scraper(url, username, password, banned_words):
+def run_scraper(url, username, password, neo4j_uri):
     # trim input url for use
     trim_url = trim_urls([url])
 
     # information retrieval and structuring
     data_set = retrieve_information(trim_url, url)
-    write_data(data_set, username, password)
+    write_data(data_set, username, password, neo4j_uri)
     print("Information Retrieval System completed!")
 
 
@@ -99,9 +88,9 @@ def retrieve_information(trim_url, website):
     return WebsiteScraper.get_data_set()
 
 
-def write_data(data_set, user, pw):
+def write_data(data_set, user, pw, uri):
     # connect to neo4j database
-    session = connect_to_neo4j(user, pw)
+    session = connect_to_neo4j(user, pw, uri)
     print("Connected to Neo4j (" + uri + ") with user: " + user)
 
     # generate cypher queries and fill database
