@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Optional
+
 from generics.constants import WEBPAGE, ARTICLE
-import uuid
 
 
 # parent class for all pages
 @dataclass(kw_only=True)
 class Information:
-    uuid: str = None
+    uuid: Optional[str] = None
     title: set = field(default_factory=set)
     url: Optional[str] = None
     sibling_of_urls: set = field(default_factory=set)
@@ -31,7 +31,6 @@ class Data(Information):
         return super().__hash__()
 
 
-#
 # class for articles on webpage
 @dataclass(kw_only=True)
 class Article(Information):

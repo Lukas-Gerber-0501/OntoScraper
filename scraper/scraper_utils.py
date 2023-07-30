@@ -141,6 +141,14 @@ def check_content_on_matching_title(data_set, title, content):
     return False
 
 
+def clean_title_set(title_set):
+    temp_set = set()
+    for title in title_set:
+        t = clean_text(title)
+        temp_set.add(t)
+    return temp_set
+
+
 def clean_text(text):
     res = text.replace("'", "")
     res = res.replace('"', '')

@@ -1,10 +1,11 @@
-# Constants
+# Nodes
 WEBPAGE = "webpage"
 ARTICLE = "article"
+
+# Extensions
 PDF = ".pdf"
 
 # Relationships
-MATCHING_TITLE = "matching_title"
 SIBLING_OF = "sibling_of"
 PARENT_OF = "parent_of"
 MENTIONED_IN = "mentioned_in"
