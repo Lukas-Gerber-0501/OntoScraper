@@ -17,7 +17,7 @@ password = "9aiKUTWKd7kyfn3lPuJBRAMzddJ_Koe5qfkFu4UsnV8"  # Replace with your Ne
 WIEN = 'https://www.bhakwien22.at'  # reference site with deep structure and multiple nodes
 SIA = 'https://www.sigmaiotarhoetaalpha.org'  # small website with deep structure
 CPX = 'https://www.compaxdigital.com'  # big website with flat structure
-
+OEH = 'https://www.oeh-mci.at' #
 
 # testsites that are not working because of site blocks or other reasons
 # MCI = 'https://www.mci.edu' (Website split into multiple urls like edu, de, at, ...)
@@ -27,10 +27,10 @@ CPX = 'https://www.compaxdigital.com'  # big website with flat structure
 def main():
 
     # trim input url for use
-    trim_url = trim_urls([SIA])
+    trim_url = trim_urls([OEH])
 
     # information retrieval and structuring
-    data_set = retrieve_information(trim_url, SIA)
+    data_set = retrieve_information(trim_url, OEH)
     write_data(data_set)
     print("Information Retrieval System completed!")
 

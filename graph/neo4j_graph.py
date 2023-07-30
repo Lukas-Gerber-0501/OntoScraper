@@ -1,11 +1,11 @@
-import logging
-import spacy
-from neo4j import GraphDatabase
 import uuid
 
-from generics.generics import WEBPAGE, ARTICLE, MATCHING_TITLE, PARENT_OF, NO_TITLE, ARTICLE_ID, REL_ID, \
+import spacy
+from neo4j import GraphDatabase
+
+from generics.constants import WEBPAGE, MATCHING_TITLE, PARENT_OF, NO_TITLE, ARTICLE_ID, REL_ID, \
     DATA_ID, DATA_REL_ID, MENTIONED_IN, PDF
-from ontology.owl_classes import Data
+from scraper.scraper_utils import clean_text
 
 # ToDo: Eingabemaske über GUI
 uri = "neo4j+s://65f99491.databases.neo4j.io:7687"  # Replace with the URI for your local Neo4j instance
@@ -48,15 +48,6 @@ def insert_node_and_data(session, node):
 
     session.run(query_string)
     print(f"Created node with name '{node.label}' and url '{node.url}'")
-
-    # if node.label == WEBPAGE:
-    #     # match articles relationship
-    #     if node.articles:
-    #         matching_query = matching_article_builder(ARTICLE, node.url)
-    #         session.run(matching_query)
-    #         print("Created relationship between articles")
-    #         print(matching_query)
-
 
 def matching_article_builder(label, parent_url):
     relationship_query = f"MATCH (a:{label}), (b:{label}) "
@@ -109,7 +100,7 @@ def create_ner_cypher_query(parent_id, parent_idx, entities):
         if ent.text not in temp:
             temp.append(ent.text)
             label = get_ner_label(ent.label_)
-            query_string += f"(e{global_counter}{parent_idx}{idx}:{label} {{uuid: '{str(uuid.uuid4())}', title: '{ent.text}'}}),"
+            query_string += f"(e{global_counter}{parent_idx}{idx}:{label} {{uuid: '{str(uuid.uuid4())}', title: '{clean_text(ent.text)}'}}),"
             query_string += f"(e{global_counter}{parent_idx}{idx})-[er{global_counter}{parent_idx}{idx}:{MENTIONED_IN}]->({parent_id}{parent_idx}),"
             global_counter += 1
 
@@ -141,8 +132,6 @@ def get_query_items(node):
     query_string = ""
     for key, value in node.__dict__.items():
         if key == 'title':
-            if type(node) == Data:
-                print("Stop")
             title_text = NO_TITLE if len(node.title) == 0 else list(node.title)[0]
             query_string += f"{key}: '{str(title_text)}',"
             continue

@@ -7,7 +7,7 @@ import requests
 import validators
 from bs4 import BeautifulSoup
 
-from generics.generics import WEBPAGE, ARTICLE, NO_TITLE, PDF
+from generics.constants import WEBPAGE, ARTICLE, NO_TITLE, PDF
 from ontology.owl_classes import Webpage, Data
 
 
@@ -18,7 +18,7 @@ def create_node(is_webpage, url):
         mime_type, extension = get_mime_type(url)
         file_name = get_file_name(url)
         current_node = Data(label=mime_type, url=url, extension=extension, uuid=str(uuid.uuid4()))
-        current_node.title.add(file_name)
+        current_node.title.add(clean_text(file_name))
 
         if extension == PDF and mime_type == "application":
             current_node.content = fetch_pdf_content(url)
@@ -42,7 +42,7 @@ def fetch_pdf_content(url):
     # remove empty lines
     content = '\n'.join(line for line in content.splitlines() if line)
 
-    return content
+    return clean_text(content)
 
 
 def extract_tag_text(html_array, tag_type):

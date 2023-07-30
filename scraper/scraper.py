@@ -6,7 +6,7 @@ import scrapy
 import validators
 from scrapy import signals
 
-from generics.generics import NO_TITLE
+from generics.constants import NO_TITLE
 from ontology.owl_classes import Article, Webpage
 from scraper.scraper_utils import is_text, extract_tag_text, create_node, url_cleanup, get_parent_node, \
     clean_text, check_content_on_matching_title
@@ -26,7 +26,7 @@ class WebsiteScraper(scrapy.Spider):
     # define the name of the spider
     name = "ontowebCrawler"
 
-    banned_words = ["termin", "termine"]
+    banned_words = ["termin", "termine", "event"]
 
     visited_links = set()
     data_set = set()  # set of all pages
