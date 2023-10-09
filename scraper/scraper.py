@@ -1,11 +1,9 @@
-import logging
 import uuid
 
 import scrapy
 import validators
-from scrapy import signals
 
-from generics.constants import NO_TITLE
+from utils.constants import NO_TITLE
 from ontology.owl_classes import Article, Webpage
 from scraper.scraper_utils import is_text, extract_tag_text, create_node, url_cleanup, get_parent_node, \
     clean_text, check_content_on_matching_title, clean_title_set
@@ -119,7 +117,6 @@ class WebsiteScraper(scrapy.Spider):
             # get all links and visit them, also crosslink every connected link with the current page
             links = response.css('a::attr(href)').getall()
             yield from self.get_followup_links(links, response)
-        yield self.data_set
 
     def add_urls_to_parent(self, current_node, parent_node, parent_page_url, response):
         if response.url in self.start_urls:
@@ -144,12 +141,8 @@ class WebsiteScraper(scrapy.Spider):
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super(WebsiteScraper, cls).from_crawler(crawler, *args, **kwargs)
-        crawler.signals.connect(spider.spider_finished, signal=signals.spider_closed)
         return spider
 
     @classmethod
     def get_data_set(cls):
         return cls.data_set
-
-    def spider_finished(self, spider):
-        print("Spider finished")

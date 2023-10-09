@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from generics.constants import WEBPAGE, ARTICLE
+from utils.constants import WEBPAGE, ARTICLE
 
 
 # parent class for all pages

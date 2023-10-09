@@ -7,7 +7,7 @@ import requests
 import validators
 from bs4 import BeautifulSoup
 
-from generics.constants import WEBPAGE, ARTICLE, NO_TITLE, PDF
+from utils.constants import WEBPAGE, ARTICLE, NO_TITLE, PDF
 from ontology.owl_classes import Webpage, Data
 
 

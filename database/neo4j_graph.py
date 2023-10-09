@@ -3,7 +3,7 @@ import uuid
 import spacy
 from neo4j import GraphDatabase
 
-from generics.constants import WEBPAGE, PARENT_OF, NO_TITLE, ARTICLE_ID, REL_ID, \
+from utils.constants import WEBPAGE, PARENT_OF, NO_TITLE, ARTICLE_ID, REL_ID, \
     DATA_ID, DATA_REL_ID, MENTIONED_IN, PDF
 from scraper.scraper_utils import clean_text
 
@@ -20,6 +20,7 @@ def connect_to_neo4j(username, pw, uri):
 
 
 def disconnect_from_neo4j(session):
+    print("Disconnected from Neo4J")
     session.close()
 
 
@@ -170,8 +171,7 @@ def process_data(session, page_set):
     # generate relationships
     check_for_relationship(session, page_set)
 
+    disconnect_from_neo4j(session)
 
-def generate_graph(session, page_set):
-    print("Starting data processing....")
-    process_data(session, page_set)
-    print("Finished data processing!")
+
+
